@@ -1,0 +1,317 @@
+.auth-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.auth-modal {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  background: #0b0b0c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.auth-close {
+  position: absolute;
+  top: 17px;
+  right: 22px;
+  font-size: 25px;
+
+  background: transparent;
+  border: none;
+  padding: 6px;
+  border-radius: 8px;
+
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+}
+.auth-close:focus,
+.auth-close:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+
+.auth-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.auth-info {
+  margin: 12px 0 24px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.auth-primary {
+  width: 100%;
+  height: 44px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0b0b0c;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+
+  margin-bottom: 18px; /* ✅ espaço abaixo do botão */
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-form label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-form input {
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: #0f0f10;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.auth-error {
+  font-size: 13px;
+  color: #ff6b6b;
+}
+
+.auth-switch {
+  margin-top: 10px;
+  font-size: 14.5px;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+}
+
+.auth-link {
+  background: none;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.oauth-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;      /* ✅ espaço ENTRE título e OAuth */
+  margin-bottom: 28px;   /* ✅ espaço ENTRE OAuth e formulário */
+}
+.oauth-btn {
+  height: 44px;
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  color: #0b0b0c;
+  font-weight: 500;
+  font-size: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  position: relative;
+  cursor: pointer;
+}
+
+.oauth-btn:hover {
+  background: #f5f5f5;
+}
+
+.oauth-btn img {
+  position: absolute;
+  left: 16px;
+
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+
+  display: block;
+}
+
+.oauth-btn span {
+  pointer-events: none;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+}
+.check-email {
+  text-align: center;
+}
+
+.check-email-text {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14.5px;
+}
+
+.check-email-text strong {
+  color: #fff;
+  font-weight: 500;
+}
+
+.check-email-timer {
+  margin: 18px 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+}
+
+.link-btn:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+.check-email-actions {
+  display: flex;
+  justify-content: center;
+  gap: 5px; /* ✅ espaço ENTRE os dois links */
+  margin-top: 6px;
+}
+
+/* ===================== LIGHT MODE — invert modal colors ===================== */
+
+:root[data-theme="light"] .auth-modal {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme="light"] .auth-close {
+  color: rgba(0, 0, 0, 0.62);
+}
+
+:root[data-theme="light"] .auth-title {
+  color: rgba(0, 0, 0, 0.92);
+}
+
+:root[data-theme="light"] .auth-info {
+  color: rgba(0, 0, 0, 0.62);
+}
+
+:root[data-theme="light"] .auth-primary {
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #000000;
+}
+
+:root[data-theme="light"] .auth-form label {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme="light"] .auth-form input {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  color: rgba(0, 0, 0, 0.88);
+}
+
+:root[data-theme="light"] .auth-form input:focus {
+  border-color: rgba(0, 0, 0, 0.34);
+}
+
+:root[data-theme="light"] .auth-switch {
+  color: rgba(0, 0, 0, 0.62);
+}
+
+:root[data-theme="light"] .auth-link {
+  color: rgba(0, 0, 0, 0.92);
+}
+
+:root[data-theme="light"] .auth-divider {
+  color: rgba(0, 0, 0, 0.42);
+}
+
+:root[data-theme="light"] .auth-divider::before,
+:root[data-theme="light"] .auth-divider::after {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+:root[data-theme="light"] .oauth-btn {
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+:root[data-theme="light"] .oauth-btn:hover {
+  background: #111111;
+}
+
+:root[data-theme="light"] .oauth-btn img[src*="apple.svg"] {
+  filter: invert(1) brightness(1.2);
+}
+
+:root[data-theme="light"] .check-email-text {
+  color: rgba(0, 0, 0, 0.78);
+}
+
+:root[data-theme="light"] .check-email-text strong {
+  color: rgba(0, 0, 0, 0.92);
+}
+
+:root[data-theme="light"] .link-btn {
+  color: rgba(0, 0, 0, 0.62);
+}
+
+:root[data-theme="light"] .link-btn:hover {
+  color: rgba(0, 0, 0, 0.92);
+}
+
+@media (max-width: 720px) {
+  .auth-backdrop {
+    padding: 16px max(16px, env(safe-area-inset-right)) 16px
+      max(16px, env(safe-area-inset-left));
+    box-sizing: border-box;
+  }
+
+  .auth-modal {
+    width: 100%;
+    max-width: none;
+  }
+}

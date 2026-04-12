@@ -1,0 +1,502 @@
+/* BACKDROP */
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* MODAL */
+.settings-modal {
+  width: 520px;
+  max-width: calc(100vw - 32px);
+  background: #0f0f0f;
+  border-radius: 14px;
+  border: 1px solid #1f1f1f;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  color: #fff;
+}
+
+/* HEADER */
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.settings-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.settings-close {
+  background: none;
+  border: none;
+  color: #9a9a9a;
+  font-size: 27px;        /* ⬅ mais pequeno */
+  line-height: 1;
+  cursor: pointer;
+  padding: 3px;
+}
+
+.settings-close:hover {
+  color: #ffffff;
+}
+
+.settings-close:hover {
+  background: #161616;
+  border-color: #2a2a2a;
+  color: #ffffff;
+}
+
+.settings-close:active {
+  background: #1f1f1f;
+  border-color: #ffffff;
+}
+
+.settings-close:hover {
+  color: #ffffff;
+}
+
+.settings-close:hover {
+  background: #161616;
+  border-color: #2a2a2a;
+  color: #ffffff;
+}
+
+.settings-close:active {
+  background: #1f1f1f;
+  border-color: #ffffff;
+}
+/* BODY */
+.settings-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* SECTION */
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-label {
+  font-size: 14.5px;   /* ⬅ maior */
+  font-weight: 300;    /* ⬅ mais presença */
+  color: #b5b5b5;
+}
+
+/* THEME BUTTONS */
+.settings-options {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-option {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 10px;
+  border: 1px solid #2a2a2a;
+  background: #141414;
+  color: #ddd;
+  cursor: pointer;
+}
+.settings-option:hover {
+  border-color: #2a2a2a;   /* mantém neutro */
+  background: #161616;     /* ligeiro realce, não azul */
+  color: #ffffff;
+}
+
+.settings-option.active {
+  background: #1f1f1f;
+  border-color: #ffffff; /* ⬅ branco */
+  color: #ffffff;
+}
+/* SELECT */
+/* DROPDOWN (IDIOMA) */
+.settings-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.settings-select {
+  width: 100%;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #ffffff;
+  outline: none;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+    font-size: 14.5px;
+  font-weight: 400;
+}
+
+.settings-select:hover {
+  background: #161616;
+  border-color: #2a2a2a;
+}
+
+.settings-select:focus {
+  border-color: #ffffff;
+}
+/* LINKS */
+.settings-link {
+  width: fit-content;
+  background: none;
+  border: none;
+  color: #3b82f6;
+  padding: 0;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.settings-link:hover {
+  text-decoration: underline;
+}
+.settings-caret {
+  color: #a8a8a8;
+  font-size: 14px;
+  line-height: 1;
+  transform: translateY(-1px);
+  transition: transform 120ms ease, color 120ms ease;
+}
+
+.settings-caret.open {
+  transform: translateY(-1px) rotate(180deg);
+  color: #ffffff;
+}
+
+.settings-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  background: #0f0f0f;
+  border: 1px solid #1f1f1f;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  padding: 6px;
+  z-index: 10000;
+}
+
+.settings-menu-item {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #eaeaea;
+  padding: 10px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+    font-size: 14.5px;
+  font-weight: 400;
+}
+
+.settings-menu-item:hover {
+  background: #161616;
+}
+
+.settings-menu-item.selected {
+  background: #1f1f1f;
+}
+
+.settings-menu-item.disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.settings-menu-item.disabled:hover {
+  background: transparent;
+}
+
+.settings-menu-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.settings-soon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
+
+/* ===================== LIGHT MODE (opt-in) ===================== */
+:root[data-theme="light"] .settings-backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="light"] .settings-modal {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: rgba(17, 17, 17, 0.92);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+:root[data-theme="light"] .settings-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+:root[data-theme="light"] .settings-close {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme="light"] .settings-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(17, 17, 17, 0.92);
+}
+
+:root[data-theme="light"] .settings-label {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme="light"] .settings-option {
+  background: #ffffff;
+  color: rgba(17, 17, 17, 0.86);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+:root[data-theme="light"] .settings-option:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(17, 17, 17, 0.92);
+}
+
+:root[data-theme="light"] .settings-option.active {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.18);
+  color: rgba(17, 17, 17, 0.92);
+}
+
+:root[data-theme="light"] .settings-select {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: rgba(17, 17, 17, 0.92);
+}
+
+:root[data-theme="light"] .settings-select:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme="light"] .settings-caret {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme="light"] .settings-caret.open {
+  color: rgba(17, 17, 17, 0.92);
+}
+
+:root[data-theme="light"] .settings-menu {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.16);
+}
+
+:root[data-theme="light"] .settings-menu-item {
+  color: rgba(17, 17, 17, 0.88);
+}
+
+:root[data-theme="light"] .settings-menu-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="light"] .settings-menu-item.selected {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme="light"] .settings-menu-item.disabled {
+  opacity: 0.72;
+}
+
+:root[data-theme="light"] .settings-soon-badge {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.58);
+}
+
+.settings-check {
+  color: #ffffff;
+  font-size: 14px;
+}
+
+:root[data-theme="light"] .settings-check {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+/* garante alinhamento perfeito */
+.settings-dropdown,
+.settings-select,
+.settings-menu,
+.settings-menu-item {
+  box-sizing: border-box;
+}
+
+.settings-select-text {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.5;
+}
+/* LINK PERIGOSO (APAGAR CONTA) */
+.settings-link-danger {
+  color: #ff4d4f;
+}
+.settings-link-danger:hover {
+  text-decoration: underline;
+}
+
+
+
+/* DELETE ACCOUNT MODAL */
+.delete-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 11000;
+}
+
+.delete-modal {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  background: #121212;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+}
+
+.delete-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #2a0f0f;
+  color: #ff4d4f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.delete-icon-svg {
+  width: 30px;
+  height: 30px;
+}
+
+.delete-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.delete-text {
+  font-size: 14px;
+  color: #b5b5b5;
+  margin-bottom: 20px;
+}
+
+.delete-error {
+  font-size: 13px;
+  color: #ff4d4f;
+  margin: -8px 0 16px;
+}
+
+.delete-keep {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #000000;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.delete-confirm {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  background: #dd0004bb;
+  color: #ffffff;
+  
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.delete-keep:disabled,
+.delete-confirm:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+/* Light mode: add button borders (keep/delete account) */
+:root[data-theme="light"] .delete-keep {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+}
+
+:root[data-theme="light"] .delete-confirm {
+  border: 1px solid rgba(0, 0, 0, 0.18);
+}
+/* APAGAR CONTA — texto vermelho, SEM sublinhado, SEM bordas */
+.settings-link.settings-link-danger,
+.settings-link.settings-link-danger:hover,
+.settings-link.settings-link-danger:focus,
+.settings-link.settings-link-danger:focus-visible,
+.settings-link.settings-link-danger:active {
+  color: #ff4d4f !important;
+  text-decoration: none !important;
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+
+/* alguns browsers (Chrome/Edge) */
+.settings-link.settings-link-danger:focus-visible {
+  outline: none !important;
+}
+
+@media (max-width: 720px) {
+  .delete-backdrop {
+    padding:
+      calc(16px + env(safe-area-inset-top, 0px))
+      18px
+      calc(16px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+  }
+
+  .delete-modal {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+

@@ -1,0 +1,406 @@
+// ===============================
+// Prisma Schema – Core AI Backend
+// Production-grade Auth System
+// ===============================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Use a direct connection for migrations/introspection (pgBouncer pooler can break Prisma Migrate).
+  directUrl = env("DIRECT_URL")
+}
+
+// ===============================
+// USER
+// ===============================
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  passwordHash String
+  name         String?
+
+  role   UserRole   @default(USER)
+  status UserStatus @default(ACTIVE)
+
+  // Billing/plan (payments come later; this is just the entitlement source of truth)
+  plan        Plan     @default(FREE)
+  planStartedAt DateTime @default(now())
+
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+
+  // Persistent memory (ChatGPT-style)
+  memoryEnabled Boolean @default(true)
+
+  // Relations
+  authTokens AuthToken[]
+  conversations Conversation[]
+  messageUsage MessageUsage[]
+  creativeUsage CreativeUsage[]
+  aiRequests   AIRequest[]
+  textBudgetMonths TextBudgetMonth[]
+  creativeBudgetMonths CreativeBudgetMonth[]
+  memories     UserMemory[]
+  supportRequests SupportRequest[]
+  projects     Project[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([plan])
+}
+
+// ===============================
+// CONVERSATIONS / MESSAGES
+// ===============================
+model Conversation {
+  id    String @id @default(uuid())
+  title String
+  mode  String @default("chat") // "chat" | "creative_studio" (match frontend)
+
+  // Relation
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages Message[]
+  projectChats ProjectChat[]
+
+  // Compact persistent context to reduce prompt size (cost/latency) while keeping long chats coherent.
+  summary         String?  @db.Text
+  summaryUpdatedAt DateTime?
+  summaryMessageCount Int @default(0)
+
+  // "Pinned chats" (persisted in DB)
+  pinned   Boolean  @default(false)
+  pinnedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@index([userId, pinned, pinnedAt, updatedAt])
+}
+
+model Message {
+  id   String @id @default(uuid())
+  role String
+  content String
+  attachments Json?
+  artifact    Json?
+
+  // Relation
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model Project {
+  id           String @id @default(uuid())
+  userId       String
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name         String
+  brief        String @default("") @db.Text
+  instructions String @default("") @db.Text
+  pinned       Boolean @default(false)
+  activeChatId String?
+
+  chats ProjectChat[]
+  files ProjectFile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@index([userId, pinned, updatedAt])
+}
+
+model ProjectChat {
+  id             String       @id @default(uuid())
+  projectId      String
+  conversationId String
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, conversationId])
+  @@index([projectId, createdAt])
+  @@index([conversationId])
+}
+
+model ProjectFile {
+  id         String  @id @default(uuid())
+  projectId  String
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name       String
+  type       String
+  size       Int
+  path       String
+  storedName String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, createdAt])
+}
+
+// ===============================
+// AUTH TOKENS
+// (Email verification & Password reset)
+// ===============================
+model AuthToken {
+  id        String @id @default(uuid())
+  tokenHash String @unique
+
+  type      AuthTokenType
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  // Relation
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, type])
+  @@index([expiresAt])
+}
+
+// ===============================
+// PLAN USAGE (Monthly message counter)
+// ===============================
+model MessageUsage {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Start of the month in UTC (e.g. 2026-02-01T00:00:00Z)
+  periodStart DateTime
+  messagesUsed Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, periodStart])
+  @@index([periodStart])
+}
+
+// ===============================
+// CREATIVE STUDIO USAGE (Monthly generation counter)
+// ===============================
+model CreativeUsage {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Start of the month in UTC (e.g. 2026-02-01T00:00:00Z)
+  periodStart DateTime
+  generationsUsed Int @default(0)
+  creditsUsed Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, periodStart])
+  @@index([periodStart])
+}
+
+// ===============================
+// AI REQUEST LOG (Monitoring / cost estimation)
+// ===============================
+model AIRequest {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Optional linkage to the chat history
+  conversationId String?
+  messageId      String?
+
+  mode     String // "chat" | "creative_studio" | etc
+  provider String // "openai" | "gemini" | ...
+  model    String // external model id used
+
+  // Whether the user forced a model selection or used the smart router
+  selectionMode String // "manual" | "auto"
+
+  status     String // "queued" | "running" | "succeeded" | "failed"
+  errorCode  String?
+  errorMessage String?
+
+  // Optional usage/cost fields (fill when provider returns usage)
+  inputTokens  Int?
+  outputTokens Int?
+  estimatedCostUsd Decimal? @db.Decimal(12, 6)
+
+  latencyMs Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([provider, createdAt])
+  @@index([status, createdAt])
+}
+
+// ===============================
+// USER MEMORY (Persistent)
+// ===============================
+model UserMemory {
+  id      String @id @default(uuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  content  String
+  embedding Json?
+  category UserMemoryCategory @default(OTHER)
+  source   UserMemorySource   @default(AUTO)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, content])
+  @@index([userId, updatedAt])
+  @@index([userId, category, updatedAt])
+}
+
+model SupportRequest {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  userEmail String
+  userName  String?
+  message   String   @db.Text
+  attachments Json?
+  context     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model TextBudgetMonth {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  userEmail String
+  plan      Plan
+  periodStart DateTime
+
+  textCostUsd    Decimal @default(0) @db.Decimal(12, 6)
+  budgetUsd      Decimal @default(0) @db.Decimal(12, 6)
+  budgetExceeded Boolean @default(false)
+  forcedToDeepseekAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, periodStart])
+  @@index([periodStart])
+  @@index([budgetExceeded, periodStart])
+  @@map("text_budget_months")
+}
+
+model CreativeBudgetMonth {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  userEmail String
+  plan      Plan
+  periodStart DateTime
+
+  creativeCostUsd Decimal @default(0) @db.Decimal(12, 6)
+  generationsUsed Int @default(0)
+  creditsUsed Int @default(0)
+  creditsLimit Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, periodStart])
+  @@index([periodStart])
+  @@map("creative_budget_months")
+}
+
+// ===============================
+// ENUMS
+// ===============================
+enum AuthTokenType {
+  EMAIL_VERIFY
+  LOGIN_LINK
+  PASSWORD_RESET
+  REFRESH
+}
+
+enum Plan {
+  FREE
+  PRO
+  PLUS
+  MAX
+}
+
+enum UserMemoryCategory {
+  PERSONAL_INFO
+  PREFERENCES
+  WORK
+  STYLE
+  TECH_STACK
+  OTHER
+}
+
+enum UserMemorySource {
+  AUTO
+  MANUAL
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+// ===============================
+// CLOSED BETA (Allowlist)
+// ===============================
+model BetaUser {
+  id        String       @id @default(uuid())
+  email     String       @unique
+  role      BetaUserRole @default(TESTER)
+  createdAt DateTime     @default(now())
+
+  @@map("beta_users")
+  @@index([email])
+}
+
+enum BetaUserRole {
+  ADMIN
+  TEAM
+  TESTER
+}

@@ -1,0 +1,2 @@
+ALTER TABLE "CreativeUsage"
+ADD COLUMN "creditsUsed" INTEGER NOT NULL DEFAULT 0;

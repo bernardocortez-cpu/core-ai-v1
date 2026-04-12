@@ -1,0 +1,485 @@
+.planos-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.planos-modal {
+  position: relative;
+  width: min(1300px, 100%);
+  height: min(90vh, 600px);
+
+  background: #0f0f0f;
+  border-radius: 20px;
+  padding: 20px 32px 28px;
+
+
+  z-index: 1001;
+  overflow-y: auto;
+}
+
+.planos-close {
+  position: absolute;
+  top: 10px;
+  right: 22px;
+
+  width: 44px;
+  height: 44px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: transparent;
+  border: none;
+  padding: 0;
+
+  color: #bbb;
+  font-size: 35px;
+  line-height: 1;
+
+  cursor: pointer;
+
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+
+.planos-close:hover {
+  color: #fff;
+}
+
+/* tirar a borda branca de foco ao clicar no X */
+.planos-close:focus,
+.planos-close:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+
+.planos-title {
+  text-align: center;
+  font-size: 30px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  margin-top: 2px;
+  transform: translateX(-4.5px);
+  color: #ffffff;
+  opacity: 1;
+}
+
+.planos-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.plano-card {
+  background: #141414;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #222;
+  color: #ffffff;
+  opacity: 1;
+}
+
+.plano-card.active {
+  border-color: #fff;
+}
+
+.plano-card h3 {
+  font-size:22px;
+  margin-bottom: 8px;
+  margin-top: 8px;
+}
+
+.plano-price {
+  font-size: 28px;
+  margin-bottom: 4px;
+  color: #ffffff;
+  opacity: 1;
+}
+
+.plano-desc {
+  color: #aaa;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.plano-button {
+  width: 100%;
+  padding: 10px;
+  border-radius: 999px;
+  border: none;
+  margin-bottom: 16px;
+
+  background: #fff;
+  color: #000;
+  cursor: pointer;
+}
+
+.plano-button:disabled {
+  background: #222;
+  color: #888;
+  cursor: default;
+}
+
+.plano-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.plano-card li {
+  font-size: 14px;
+  color: #ddd;
+  margin-bottom: 8px;
+}
+.planos-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.planos-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.planos-modal::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+.planos-modal::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Firefox */
+.planos-modal {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+.planos-billing-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.planos-billing-toggle button {
+  padding: 6px 24px;
+  border-radius: 999px;
+  border: 1px solid #222;
+  background: #111;
+  color: #aaa;
+  font-size: 15px;
+  cursor: pointer;
+ transform: translateX(-4.5px);
+}
+
+.planos-billing-toggle button.active {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+.plano-card li {
+  font-size: 14px;
+  color: #ddd;
+  margin-bottom: 8px;
+}
+
+/* Destaque dos "Tudo do X e:" */
+
+
+.plano-card li {
+  font-weight: 400;
+}
+
+/* Linha de separação de planos */
+/* Destaque do "Tudo do X e:" — apenas planos pagos */
+.plano-card:not(.plano-free) li:first-child {
+  font-weight: 600;
+  color: #fff;
+  margin-top: 4px;
+}
+
+/* Garantir que o Free fica normal */
+.plano-free li:first-child {
+  font-weight: 400;
+  color: #ddd;
+}
+/* ===== Pricing style: check antes das funcionalidades (igual ChatGPT) ===== */
+
+.plano-card ul {
+  margin-top: 6px;
+}
+
+.plano-card li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* Check padrão */
+.plano-feature::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin-top: 2px;
+  background: rgba(255, 255, 255, 0.9);
+
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/%3E%3C/svg%3E")
+    no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/%3E%3C/svg%3E")
+    no-repeat center / contain;
+}
+
+/* “Tudo do X e:” NÃO leva check — leva um sparkle/diamond */
+.plano-feature-tudo::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin-top: 2px;
+  background: rgba(255, 255, 255, 0.9);
+
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M12 2l1.3 6.2L20 10l-6.7 1.8L12 18l-1.3-6.2L4 10l6.7-1.8L12 2z'/%3E%3C/svg%3E")
+    no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M12 2l1.3 6.2L20 10l-6.7 1.8L12 18l-1.3-6.2L4 10l6.7-1.8L12 2z'/%3E%3C/svg%3E")
+    no-repeat center / contain;
+}
+
+.plano-feature-text {
+  line-height: 1.35;
+}
+
+/* Mantém o “Tudo do X e:” mais forte como já querias */
+.plano-card:not(.plano-free) .plano-feature-tudo {
+  font-weight: 600;
+  color: #fff;
+  margin-top: 4px;
+}
+
+.plano-free .plano-feature-tudo {
+  font-weight: 400;
+  color: #ddd;
+}
+/* Linha divisória após "Tudo do X e:" (igual ChatGPT) */
+.plano-divider {
+  height: 0.5px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 15px 0 14px;
+}
+/* Garantir que funcionalidades NÃO ficam a negrito */
+.plano-feature,
+.plano-feature .plano-feature-text {
+  font-weight: 400;
+}
+/* Badge "Poupa 20%" */
+.plano-badge {
+  display: inline-block;
+  margin-top: 2px;
+  margin-bottom: 0px;
+
+  padding: 4px 10px;
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ===================== LIGHT MODE (opt-in) ===================== */
+
+:root[data-theme="light"] .planos-backdrop {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme="light"] .planos-modal {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.18);
+  color: rgba(17, 17, 17, 0.92);
+  scrollbar-color: rgba(0,0,0,0.22) transparent;
+}
+
+:root[data-theme="light"] .planos-modal::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+:root[data-theme="light"] .planos-modal::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.24);
+}
+
+:root[data-theme="light"] .planos-close {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme="light"] .planos-close:hover {
+  color: rgba(0, 0, 0, 0.92);
+}
+
+:root[data-theme="light"] .planos-title {
+  color: rgba(17, 17, 17, 0.92);
+}
+
+:root[data-theme="light"] .planos-billing-toggle button {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme="light"] .planos-billing-toggle button.active {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+:root[data-theme="light"] .plano-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.08);
+  color: rgba(17, 17, 17, 0.92);
+}
+
+:root[data-theme="light"] .plano-card.active {
+  border-color: rgba(0, 0, 0, 0.28);
+}
+
+:root[data-theme="light"] .plano-price {
+  color: rgba(17, 17, 17, 0.92);
+}
+
+:root[data-theme="light"] .plano-desc {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme="light"] .plano-card li {
+  color: rgba(0, 0, 0, 0.82);
+}
+
+:root[data-theme="light"] .plano-card:not(.plano-free) .plano-feature-tudo {
+  color: rgba(17, 17, 17, 0.92);
+}
+
+:root[data-theme="light"] .plano-free .plano-feature-tudo {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme="light"] .plano-feature::before,
+:root[data-theme="light"] .plano-feature-tudo::before {
+  background: rgba(0, 0, 0, 0.92);
+}
+
+:root[data-theme="light"] .plano-divider {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+:root[data-theme="light"] .plano-badge {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.82);
+}
+
+:root[data-theme="light"] .plano-button {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+:root[data-theme="light"] .plano-button:not(:disabled) {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+:root[data-theme="light"] .plano-button:not(:disabled):hover {
+  background: #111111;
+  border-color: #111111;
+}
+
+:root[data-theme="light"] .plano-button:disabled {
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.40);
+}
+
+/* ===================== RESPONSIVE (tablet) ===================== */
+@media (max-width: 1024px){
+  .planos-modal{
+    width: min(980px, calc(100vw - 24px));
+    height: min(90vh, 760px);
+    padding: 18px 22px 24px;
+  }
+
+  .planos-grid{
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1366px){
+  .planos-backdrop{
+    padding:
+      calc(18px + env(safe-area-inset-top))
+      18px
+      calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .planos-modal{
+    width: min(980px, calc(100vw - 36px));
+    max-width: 100%;
+    max-height: calc(
+      var(--real-vh, 100vh) - 36px - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    );
+  }
+}
+
+/* ===================== RESPONSIVE (mobile) ===================== */
+@media (max-width: 720px){
+  .planos-modal{
+    width: 100%;
+    height: min(100%, calc(100dvh - 24px));
+    max-height: 100%;
+    padding: 16px 16px 20px;
+    border-radius: 18px;
+  }
+
+  .planos-close{
+    top: 10px;
+    right: 10px;
+  }
+
+  .planos-title{
+    font-size: 24px;
+    width: fit-content;
+    max-width: calc(100% - 72px);
+    text-align: center;
+    transform: none;
+    margin-top: 6px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .planos-billing-toggle{
+    width: fit-content;
+    justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .planos-billing-toggle button{
+    transform: none;
+  }
+
+  .planos-grid{
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+

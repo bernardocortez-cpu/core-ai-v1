@@ -1,0 +1,280 @@
+.support-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.56);
+  backdrop-filter: blur(6px);
+}
+
+.support-modal-card {
+  width: min(470px, calc(100vw - 36px));
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.45);
+  background: #141414;
+  display: flex;
+  flex-direction: column;
+}
+
+.support-modal-top {
+  position: relative;
+  min-height: 72px;
+  padding: 14px 18px 12px;
+  background: #141414;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.support-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.support-modal-title {
+  margin: 0;
+  max-width: 360px;
+  font-size: 21px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.support-modal-body {
+  padding: 18px 20px 20px;
+  background: #f5f5f3;
+  border-radius: 0 0 22px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.support-modal-textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  height: 180px;
+  resize: none;
+  overflow-y: auto;
+  border-radius: 14px;
+  border: 1px solid #d6d8dc;
+  background: #ffffff;
+  color: #16181c;
+  padding: 14px;
+  font: inherit;
+  line-height: 1.5;
+  outline: none;
+  scrollbar-width: thin;
+  scrollbar-color: #c8ced8 transparent;
+}
+
+.support-modal-textarea::placeholder {
+  color: #8ba0bb;
+}
+
+.support-modal-textarea:focus {
+  border-color: #bcc7d6;
+}
+
+.support-modal-textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.support-modal-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.support-modal-textarea::-webkit-scrollbar-thumb {
+  background: #c8ced8;
+  border-radius: 999px;
+}
+
+.support-toolbar {
+  display: flex;
+  width: 100%;
+  border: 1px solid #111111;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #111111;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.support-toolbar-btn {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 140ms ease, background 140ms ease, opacity 140ms ease;
+  opacity: 1;
+}
+
+.support-toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.support-toolbar-btn + .support-toolbar-btn {
+  border-left: 1px solid #d6d8dc;
+}
+
+.support-files-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.support-file-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #d6d8dc;
+}
+
+.support-file-pill-main {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.support-file-pill-name {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: #1d2127;
+}
+
+.support-file-pill-meta {
+  font-size: 12px;
+  color: #000000;
+}
+
+.support-file-pill-remove {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 999px;
+  background: #eef1f5;
+  color: #5b6470;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.support-submit {
+  width: 100%;
+  height: 42px;
+  border: none;
+  border-radius: 999px;
+  background: #171717;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 140ms ease, opacity 140ms ease;
+}
+
+.support-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.support-file-input {
+  display: none;
+}
+
+:root[data-theme="dark"] .support-modal-card {
+  background: #0f1013;
+}
+
+:root[data-theme="dark"] .support-modal-body {
+  background: #f5f5f3;
+}
+
+@media (max-width: 640px) {
+  .support-modal-backdrop {
+    padding: 10px;
+    place-items: center;
+  }
+
+  .support-modal-card {
+    width: min(430px, calc(100vw - 20px));
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+    border-radius: 20px;
+  }
+
+  .support-modal-top {
+    min-height: 68px;
+    padding: 14px 16px 12px;
+  }
+
+  .support-modal-title {
+    max-width: 240px;
+    font-size: 19px;
+  }
+
+  .support-modal-body {
+    padding: 16px;
+  }
+
+  .support-modal-textarea {
+    height: 160px;
+  }
+
+  .support-toolbar-btn {
+    min-width: 100%;
+  }
+
+  .support-file-pill {
+    width: 100%;
+    justify-content: space-between;
+    border-radius: 14px;
+  }
+
+  .support-file-pill-main {
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .support-file-pill-name {
+    max-width: 100%;
+  }
+}

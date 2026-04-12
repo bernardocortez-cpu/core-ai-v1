@@ -1,0 +1,863 @@
+const prisma = require("../lib/prisma");
+const { isPaidPlan, normalizePlan } = require("../config/plans");
+const planService = require("./plan.service");
+const { getModel } = require("../ai/models");
+const { chooseModel } = require("../ai/router");
+const { runInProviderQueue } = require("../ai/queues");
+const { getProvider } = require("../ai/providers");
+const { searchLayer, buildInjectedWebContext } = require("../ai/websearch");
+
+function extractTextFromContent(content) {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    const parts = [];
+    for (const p of content) {
+      if (!p || typeof p !== "object") continue;
+      const t = String(p.type || "");
+      if (t === "text" || t === "input_text") {
+        const v =
+          typeof p.text === "string"
+            ? p.text
+            : typeof p.content === "string"
+              ? p.content
+              : "";
+        if (v) parts.push(v);
+      }
+    }
+    return parts.join("");
+  }
+  return "";
+}
+
+function safeHostname(url) {
+  try {
+    const u = new URL(String(url || ""));
+    return String(u.hostname || "").replace(/^www\./i, "");
+  } catch {
+    return "";
+  }
+}
+
+function replaceNumericCitationsWithHosts(text, sources) {
+  const list = Array.isArray(sources) ? sources : [];
+  const srcFor = (n) => {
+    const idx = Number(n) - 1;
+    if (!Number.isFinite(idx) || idx < 0 || idx >= list.length) return null;
+    const src = list[idx];
+    const url = typeof src?.url === "string" ? src.url : "";
+    if (!url) return null;
+    const host = (typeof src?.host === "string" && src.host) || safeHostname(url) || "source";
+    return { host, url };
+  };
+
+  // Match common citation marker variants:
+  // - ASCII: [1]
+  // - Fullwidth: ［1］
+  // - CJK: 【1】
+  // Avoid breaking existing Markdown links like `[1](https://...)` by not matching when `(` follows.
+  const re =
+    /(?:\[\s*(\d{1,3})\s*\](?!\s*\()|\uFF3B\s*(\d{1,3})\s*\uFF3D(?!\s*\()|【\s*(\d{1,3})\s*】(?!\s*\())/g;
+
+  return String(text || "").replace(re, (m, a, b, c) => {
+    const n = a || b || c;
+    const src = srcFor(n);
+    if (!src) return "";
+    return ` [${src.host}](${src.url})`;
+  });
+}
+
+function createCitationStreamTransformer({ sources } = {}) {
+  const list = Array.isArray(sources) ? sources : [];
+  if (list.length === 0) {
+    return { push: (chunk) => String(chunk || ""), flush: () => "" };
+  }
+
+  let carry = "";
+  const maxCarry = 12; // enough to hold "[123]" split across chunks
+
+  function process(s) {
+    return replaceNumericCitationsWithHosts(s, list);
+  }
+
+  return {
+    push(chunk) {
+      const input = carry + String(chunk || "");
+      if (input.length <= maxCarry) {
+        carry = input;
+        return "";
+      }
+      const head = input.slice(0, input.length - maxCarry);
+      carry = input.slice(input.length - maxCarry);
+      return process(head);
+    },
+    flush() {
+      const out = process(carry);
+      carry = "";
+      return out;
+    },
+  };
+}
+
+function contentHasMediaParts(content) {
+  if (!Array.isArray(content)) return false;
+  return content.some((p) => {
+    if (!p || typeof p !== "object") return false;
+    const t = String(p.type || "");
+    return t === "image_url" || t === "file" || t === "document" || t === "input_file";
+  });
+}
+
+function keepOnlyTextParts(content) {
+  return extractTextFromContent(content);
+}
+
+function keepOnlyMediaParts(content) {
+  if (!Array.isArray(content)) return [];
+  const out = [];
+  for (const p of content) {
+    if (!p || typeof p !== "object") continue;
+    const t = String(p.type || "");
+    if (t === "image_url" || t === "file" || t === "document" || t === "input_file") out.push(p);
+  }
+  return out;
+}
+
+async function extractAttachmentsTextWithGemini({ userText, content, signal }) {
+  const extractorId = process.env.ATTACHMENT_EXTRACTOR_MODEL_ID || "gemini-2.5 pro";
+  const geminiModel = getModel(extractorId) || getModel("gemini-3 pro");
+  if (!geminiModel || geminiModel.provider !== "gemini") return null;
+  const gemini = getProvider("gemini");
+  if (!gemini) return null;
+
+  const mediaParts = keepOnlyMediaParts(content);
+  if (mediaParts.length === 0) return null;
+
+  let out = "";
+  const system = {
+    role: "system",
+    content:
+      "És um motor de extração de anexos (imagem/PDF). " +
+      "Extrai o máximo de conteúdo útil dos anexos e devolve em Português. " +
+      "Se for PDF, extrai títulos, tópicos e texto relevante. Se for imagem, descreve e extrai texto visível. " +
+      "Devolve apenas o conteúdo extraído (sem desculpas).",
+  };
+  const user = {
+    role: "user",
+    content: [
+      {
+        type: "text",
+        text: "Pergunta do utilizador (para contexto):\n" + String(userText || "").slice(0, 4000),
+      },
+      ...mediaParts,
+    ],
+  };
+
+  try {
+    if (process.env.DEBUG_AI === "1") {
+      console.error("[attachments] extractor", {
+        extractorId,
+        remoteModel: geminiModel.remoteModel,
+        mediaParts: mediaParts.map((p) => String(p?.type || "")),
+      });
+    }
+    await runInProviderQueue("gemini", () =>
+      gemini.streamChat({
+        remoteModel: geminiModel.remoteModel,
+        messages: [system, user],
+        onDelta: (d) => {
+          if (typeof d === "string") out += d;
+        },
+        signal,
+      })
+    );
+  } catch (e) {
+    if (process.env.DEBUG_AI === "1") {
+      console.error("[attachments] gemini extractor error", {
+        message: e?.message || String(e),
+        status: e?.status,
+        details: e?.details,
+      });
+    }
+    return null;
+  }
+
+  return out.trim() || null;
+}
+
+function toChatMessages(messages) {
+  // Normalize to OpenAI-style messages shape (role/content).
+  // `content` can be a string or a provider-compatible parts array (for images/files).
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .map((m) => ({
+      role: m?.role,
+      content: m?.content,
+    }))
+    .filter((m) => {
+      if (typeof m.role !== "string") return false;
+      if (typeof m.content === "string") return m.content.length > 0;
+      if (Array.isArray(m.content)) return m.content.length > 0;
+      return false;
+    });
+}
+
+function assertModelAllowed({ plan, model }) {
+  const paid = isPaidPlan(plan);
+  if (!paid && model.tier !== "light") {
+    const err = new Error("MODEL_NOT_ALLOWED_FOR_PLAN");
+    err.status = 403;
+    err.details = { plan, modelId: model.id };
+    throw err;
+  }
+}
+
+async function createAIRequest({
+  userId,
+  conversationId,
+  messageId,
+  mode,
+  provider,
+  model,
+  selectionMode,
+}) {
+  return prisma.aIRequest.create({
+    data: {
+      userId,
+      conversationId: conversationId || null,
+      messageId: messageId || null,
+      mode: mode || "chat",
+      provider,
+      model,
+      selectionMode,
+      status: "queued",
+    },
+  });
+}
+
+async function updateAIRequest(id, data) {
+  return prisma.aIRequest.update({
+    where: { id },
+    data,
+  });
+}
+
+async function streamChat({
+  userId,
+  plan,
+  selectionMode, // "manual" | "auto"
+  selectedModelId, // optional UI model id
+  messages,
+  conversationId,
+  webSearchEnabled, // optional (frontend toggle)
+  reasoningEnabled, // optional (frontend toggle)
+  locale, // optional BCP-47-ish, from client/header
+  onDelta,
+  signal,
+}) {
+  const normalizedPlan = normalizePlan(plan);
+  const effectiveLocale = (() => {
+    const raw = String(locale || "").trim();
+    if (!raw) return "en-US";
+    const cleaned = raw.replace(/_/g, "-").split(";")[0].trim();
+    const [lang0, region0] = cleaned.split("-");
+    const lang = String(lang0 || "").toLowerCase();
+    if (!/^[a-z]{2,3}$/.test(lang)) return "en-US";
+    const region = region0 ? String(region0).toUpperCase() : "";
+    if (region && !/^[A-Z]{2}$/.test(region)) return lang;
+    if (!region) {
+      if (lang === "pt") return "pt-PT";
+      if (lang === "en") return "en-US";
+      return lang;
+    }
+    return `${lang}-${region}`;
+  })();
+  const chatMessages = toChatMessages(messages);
+  const lastUser = [...chatMessages].reverse().find((m) => m.role === "user");
+  const text = extractTextFromContent(lastUser?.content || "");
+  let hadDelta = false;
+  const onDeltaWrapped =
+    typeof onDelta === "function"
+      ? (delta) => {
+          hadDelta = true;
+          onDelta(delta);
+        }
+      : () => {
+          hadDelta = true;
+        };
+
+  // 1) Plan: consume 1 message unit (atomic per month)
+  await planService.assertAndConsumeMessage({ userId });
+
+  // 2) Model: manual or auto
+  let picked = null;
+  if (selectedModelId) {
+    // The frontend uses "__best__" for "Melhor · Automático".
+    if (selectedModelId === "__best__") selectedModelId = null;
+  }
+
+  // Reasoning toggle: add a small system instruction for deeper reasoning (safe across providers).
+  // IMPORTANT: we do NOT ask the model to reveal chain-of-thought; we only nudge depth/rigor.
+  if (reasoningEnabled) {
+    chatMessages.unshift({
+      role: "system",
+      content:
+        "Modo Raciocínio: responde com mais rigor e profundidade. " +
+        "Usa uma estrutura clara (passos, bullets, tabela se fizer sentido). " +
+        "Não mostres o teu raciocínio interno; mostra apenas a resposta final bem explicada.",
+    });
+  }
+
+  if (selectedModelId) {
+    picked = getModel(selectedModelId);
+    if (!picked) {
+      const err = new Error("UNKNOWN_MODEL");
+      err.status = 400;
+      err.details = { selectedModelId };
+      throw err;
+    }
+    assertModelAllowed({ plan: normalizedPlan, model: picked });
+    selectionMode = "manual";
+  } else {
+    picked = await chooseModel({ text, plan: normalizedPlan, reasoningEnabled: Boolean(reasoningEnabled) });
+    if (!picked) {
+      const err = new Error("NO_MODEL_AVAILABLE");
+      err.status = 503;
+      throw err;
+    }
+    assertModelAllowed({ plan: normalizedPlan, model: picked });
+    selectionMode = "auto";
+  }
+
+  // 3) Provider adapter
+  const provider = getProvider(picked.provider);
+  if (!provider) {
+    const err = new Error("PROVIDER_NOT_IMPLEMENTED");
+    err.status = 501;
+    err.details = { provider: picked.provider };
+    throw err;
+  }
+
+  // 4) Monitoring row
+  const reqRow = await createAIRequest({
+    userId,
+    conversationId,
+    messageId: null,
+    mode: "chat",
+    provider: picked.provider,
+    model: picked.remoteModel,
+    selectionMode,
+  });
+
+  const startedAt = Date.now();
+  await updateAIRequest(reqRow.id, { status: "running" });
+
+  // 4a) Web Search layer (decoupled from model/provider).
+  // When enabled, we call `searchLayer()` first and inject the results into the prompt
+  // as a system message. We do NOT switch the chosen provider/model.
+  let webSearchMeta = {
+    requested: Boolean(webSearchEnabled),
+    denied: false,
+    used: false,
+    provider: null,
+    fetchedAt: null,
+    sources: null,
+  };
+
+  // 4b) Attachments: make *all* models able to use images/docs by extracting them into text.
+  // Frontend sends images/PDFs as parts (data: URLs). Most providers are text-only.
+  const lastUserIndex = (() => {
+    for (let i = chatMessages.length - 1; i >= 0; i -= 1) {
+      if (chatMessages[i]?.role === "user") return i;
+    }
+    return -1;
+  })();
+
+  if (lastUserIndex >= 0 && contentHasMediaParts(chatMessages[lastUserIndex]?.content)) {
+    const baseText = keepOnlyTextParts(chatMessages[lastUserIndex]?.content);
+    const extracted = await extractAttachmentsTextWithGemini({
+      userText: baseText,
+      content: chatMessages[lastUserIndex]?.content,
+      signal,
+    });
+
+    if (extracted) {
+      const note = `\n\n[Conteúdo extraído dos anexos]\n${extracted}`;
+      const c0 = chatMessages[lastUserIndex]?.content;
+      if (typeof c0 === "string") {
+        chatMessages[lastUserIndex] = { ...chatMessages[lastUserIndex], content: `${c0}${note}` };
+      } else if (Array.isArray(c0)) {
+        chatMessages[lastUserIndex] = {
+          ...chatMessages[lastUserIndex],
+          content: [...c0, { type: "text", text: note }],
+        };
+      } else {
+        chatMessages[lastUserIndex] = { ...chatMessages[lastUserIndex], content: `${baseText}${note}` };
+      }
+    } else {
+      // If extraction fails, at least keep a hint that an attachment exists.
+      const hint = "\n\n[Anexo enviado: não foi possível extrair o conteúdo automaticamente.]";
+      const c0 = chatMessages[lastUserIndex]?.content;
+      if (typeof c0 === "string") {
+        chatMessages[lastUserIndex] = { ...chatMessages[lastUserIndex], content: `${c0}${hint}` };
+      } else if (Array.isArray(c0)) {
+        chatMessages[lastUserIndex] = {
+          ...chatMessages[lastUserIndex],
+          content: [...c0, { type: "text", text: hint }],
+        };
+      } else {
+        chatMessages[lastUserIndex] = { ...chatMessages[lastUserIndex], content: `${baseText}${hint}` };
+      }
+    }
+  }
+
+  // 4c) Web Search injection (optional). If the search fails or times out, we answer normally.
+  if (webSearchEnabled) {
+    const ws = await searchLayer({
+      query: text,
+      plan: normalizedPlan,
+      maxSources: 5,
+      timeoutMs: Number(process.env.WEBSEARCH_TIMEOUT_MS || "20000"),
+      locale: effectiveLocale,
+      signal,
+    });
+
+    if (ws?.denied) {
+      webSearchMeta.denied = true;
+    } else if (ws?.ok) {
+      webSearchMeta.used = true;
+      webSearchMeta.provider = ws.provider || "perplexity";
+      webSearchMeta.fetchedAt = ws.fetchedAt || null;
+      webSearchMeta.sources = ws.sources || [];
+
+      chatMessages.unshift({
+        role: "system",
+        content: buildInjectedWebContext({
+          fetchedAt: webSearchMeta.fetchedAt,
+          summary: ws.summary || "",
+          sources: webSearchMeta.sources,
+        }),
+      });
+
+      console.log("[model] using injected web context");
+
+      // Persist "webSearch=true" in AIRequest without schema changes.
+      // (We keep it as a mode variant for now; can evolve to a real column later.)
+      await updateAIRequest(reqRow.id, { mode: "chat_websearch" });
+    }
+  }
+
+  function messagesForProvider(providerKey) {
+    const supportsParts = providerKey === "gemini" || providerKey === "anthropic";
+    return chatMessages.map((m) => ({
+      ...m,
+      content: supportsParts
+        ? m.content
+        : providerKey === "openai"
+          ? (() => {
+              const c = m.content;
+              if (!Array.isArray(c)) return c;
+              const filtered = c.filter((p) => {
+                const t = String(p?.type || "");
+                return t === "text" || t === "input_text" || t === "image_url";
+              });
+              return filtered.length > 0 ? filtered : keepOnlyTextParts(c);
+            })()
+          : keepOnlyTextParts(m.content),
+    }));
+  }
+
+  function isOpenAIModelNotFound(err) {
+    return (
+      err &&
+      err.status === 404 &&
+      err.details?.provider === "openai" &&
+      (err.details?.code === "model_not_found" || err.message === "model_not_found")
+    );
+  }
+
+  function isGrokModelNotFound(err) {
+    return (
+      err &&
+      err.details?.provider === "grok" &&
+      ((err.status === 404 && (err.details?.code === "model_not_found" || err.message === "model_not_found")) ||
+        (err.status === 400 && String(err.details?.message || err.details?.body || "").toLowerCase().includes("model")))
+    );
+  }
+
+  function isDeepSeekModelNotFound(err) {
+    return (
+      err &&
+      err.details?.provider === "deepseek" &&
+      ((err.status === 404 && (err.details?.code === "model_not_found" || err.message === "model_not_found")) ||
+        (err.status === 400 && String(err.details?.message || err.details?.body || "").toLowerCase().includes("model")))
+    );
+  }
+
+  function isMoonshotModelNotFound(err) {
+    return (
+      err &&
+      err.details?.provider === "moonshot" &&
+      ((err.status === 404 && (err.details?.code === "model_not_found" || err.message === "model_not_found")) ||
+        (err.status === 400 && String(err.details?.message || err.details?.body || "").toLowerCase().includes("model")))
+    );
+  }
+
+  function isPerplexityModelNotFound(err) {
+    return (
+      err &&
+      err.details?.provider === "perplexity" &&
+      ((err.status === 404 && (err.details?.code === "model_not_found" || err.message === "model_not_found")) ||
+        (err.status === 400 && String(err.details?.message || err.details?.body || "").toLowerCase().includes("model")))
+    );
+  }
+
+  function isQwenModelNotFound(err) {
+    return (
+      err &&
+      err.details?.provider === "qwen" &&
+      ((err.status === 404 && (err.details?.code === "model_not_found" || err.message === "model_not_found")) ||
+        (err.status === 400 && String(err.details?.message || err.details?.body || "").toLowerCase().includes("model")))
+    );
+  }
+
+  function isGeminiModelNotFound(err) {
+    if (!err) return false;
+    if (err.details?.provider !== "gemini") return false;
+    const st = String(err.details?.status || "").toUpperCase();
+    const msg = String(err.details?.message || err.details?.body || "").toLowerCase();
+    const status = Number(err.status || 0);
+
+    // Prefer explicit Google status.
+    if (st === "NOT_FOUND") return true;
+    if (st === "INVALID_ARGUMENT" && msg.includes("model")) return true;
+    if (st === "PERMISSION_DENIED" && msg.includes("model")) return true;
+
+    // Heuristics by HTTP + message.
+    if (status === 404 && (msg.includes("not found") || msg.includes("models/") || msg.includes("model"))) return true;
+    if (status === 400 && msg.includes("model")) return true;
+    if (status === 403 && msg.includes("model")) return true;
+
+    return false;
+  }
+
+  function isAnthropicModelNotFound(err) {
+    if (!err) return false;
+    if (err.details?.provider !== "anthropic") return false;
+    const code = String(err.details?.code || err.message || "").toLowerCase();
+    const msg = String(err.details?.message || err.details?.body || "").toLowerCase();
+    const status = Number(err.status || 0);
+
+    // Anthropic commonly uses "not_found_error" or similar; keep heuristics broad.
+    if (code.includes("not_found")) return true;
+    if (status === 404 && (msg.includes("not found") || msg.includes("model"))) return true;
+    if (status === 400 && msg.includes("model")) return true;
+    return false;
+  }
+
+  async function callModel(modelObj) {
+    const providerX = getProvider(modelObj.provider);
+    if (!providerX) {
+      const err = new Error("PROVIDER_NOT_IMPLEMENTED");
+      err.status = 501;
+      err.details = { provider: modelObj.provider };
+      throw err;
+    }
+
+    // Some models (notably some DeepSeek outputs) tend to cite sources as numeric markers like [1][2].
+    // When webSearch is active, we want citations to appear as clickable hostnames instead.
+    const citationTransformer =
+      webSearchMeta.used && Array.isArray(webSearchMeta.sources) && webSearchMeta.sources.length > 0
+        ? createCitationStreamTransformer({ sources: webSearchMeta.sources })
+        : null;
+
+    const onDeltaWithCitations =
+      citationTransformer && typeof onDeltaWrapped === "function"
+        ? (chunk) => {
+            const transformed = citationTransformer.push(chunk);
+            if (transformed) onDeltaWrapped(transformed);
+          }
+        : onDeltaWrapped;
+
+    return runInProviderQueue(modelObj.provider, async () => {
+      const out = await providerX.streamChat({
+        remoteModel: modelObj.remoteModel,
+        messages: messagesForProvider(modelObj.provider),
+        onDelta: onDeltaWithCitations,
+        signal,
+      });
+
+      if (citationTransformer) {
+        const tail = citationTransformer.flush();
+        if (tail) onDeltaWrapped(tail);
+        const fixedText = replaceNumericCitationsWithHosts(out?.text || "", webSearchMeta.sources);
+        return { ...out, text: fixedText };
+      }
+
+      return out;
+    });
+  }
+
+  function assertNonEmptyText({ out, modelObj }) {
+    const textOut = typeof out?.text === "string" ? out.text : "";
+    if (textOut.trim()) return textOut;
+
+    const err = new Error("EMPTY_PROVIDER_RESPONSE");
+    err.status = 502;
+    err.details = {
+      provider: modelObj.provider,
+      model: modelObj.id,
+      remoteModel: modelObj.remoteModel,
+      meta: out?.meta || null,
+    };
+    throw err;
+  }
+
+  // 5) Queue + rate-limit + call provider (streaming)
+  try {
+    const out = await callModel(picked);
+    const finalText = assertNonEmptyText({ out, modelObj: picked });
+
+    const latencyMs = Date.now() - startedAt;
+    await updateAIRequest(reqRow.id, {
+      status: "succeeded",
+      latencyMs,
+      inputTokens: out?.usage?.prompt_tokens ?? null,
+      outputTokens: out?.usage?.completion_tokens ?? null,
+    });
+
+    return {
+      requestId: reqRow.id,
+      provider: picked.provider,
+      model: picked.id,
+      remoteModel: picked.remoteModel,
+      selectionMode,
+      text: finalText,
+      usage: out.usage || null,
+      webSearch: Boolean(webSearchMeta.used),
+      webSearchDenied: Boolean(webSearchMeta.denied),
+      sources: webSearchMeta.sources || null,
+    };
+  } catch (e) {
+    let lastErr = e;
+
+    // Fallback (paid users only, and only if we didn't already stream partial output).
+    // - Auto: we can freely switch models/providers.
+    // - Manual: we normally do NOT switch, but if the chosen OpenAI model doesn't exist / no access (404 model_not_found),
+    //   we fall back to a safe OpenAI model to avoid "no response" for the user.
+    if (isPaidPlan(normalizedPlan) && !hadDelta) {
+      const candidates = [];
+      const openaiModelNotFound = picked.provider === "openai" && isOpenAIModelNotFound(lastErr);
+      const grokModelNotFound = picked.provider === "grok" && isGrokModelNotFound(lastErr);
+      const deepseekModelNotFound = picked.provider === "deepseek" && isDeepSeekModelNotFound(lastErr);
+      const moonshotModelNotFound = picked.provider === "moonshot" && isMoonshotModelNotFound(lastErr);
+      const perplexityModelNotFound = picked.provider === "perplexity" && isPerplexityModelNotFound(lastErr);
+      const qwenModelNotFound = picked.provider === "qwen" && isQwenModelNotFound(lastErr);
+      const geminiModelNotFound = picked.provider === "gemini" && isGeminiModelNotFound(lastErr);
+      const anthropicModelNotFound = picked.provider === "anthropic" && isAnthropicModelNotFound(lastErr);
+      const emptyProviderResponse = lastErr?.message === "EMPTY_PROVIDER_RESPONSE";
+
+      // 1) If OpenAI says the model doesn't exist / no access, retry with a safe OpenAI model.
+      // This covers both auto + manual selections.
+      if (openaiModelNotFound) {
+        for (const id of ["gpt-5.2", "gpt-5", "gpt-5-nano"]) {
+          const m = getModel(id);
+          if (m && m.provider === "openai" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+
+      // 1a) If Grok says the model doesn't exist / no access, retry with a safe Grok model.
+      if (grokModelNotFound) {
+        for (const id of ["grok-4", "grok-4.1"]) {
+          const m = getModel(id);
+          if (m && m.provider === "grok" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+
+      // 1ab) If DeepSeek says the model doesn't exist / no access, retry with a safe DeepSeek model.
+      if (deepseekModelNotFound) {
+        for (const id of ["deepseek-v3.2", "deepseek-r1"]) {
+          const m = getModel(id);
+          if (m && m.provider === "deepseek" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+
+      // 1ac) If Moonshot/Kimi says the model doesn't exist / no access, retry with a safe Kimi model.
+      if (moonshotModelNotFound) {
+        for (const id of ["kimi-k2-5"]) {
+          const m = getModel(id);
+          if (m && m.provider === "moonshot" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+
+      // 1ad) If Perplexity says the model doesn't exist / no access, retry with a safe Sonar model.
+      if (perplexityModelNotFound) {
+        for (const id of ["perplexity-sonar-pro", "perplexity-sonar"]) {
+          const m = getModel(id);
+          if (m && m.provider === "perplexity" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+
+      // 1ae) If Qwen says the model doesn't exist / no access, retry with a safe Qwen model.
+      if (qwenModelNotFound) {
+        for (const id of ["qwen3-max"]) {
+          const m = getModel(id);
+          if (m && m.provider === "qwen" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+
+      // 1b) If Gemini says the model doesn't exist / no access, retry with a safe Gemini model.
+      // This covers both auto + manual selections.
+      if (geminiModelNotFound) {
+        for (const id of ["gemini-2.5 pro", "gemini-2.5 flash"]) {
+          const m = getModel(id);
+          if (m && m.provider === "gemini" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+
+      // 1c) If Anthropic says the model doesn't exist / no access, retry with a safe Anthropic model.
+      if (anthropicModelNotFound) {
+        for (const id of ["claude-sonnet-4.5", "claude-haiku-4.5"]) {
+          const m = getModel(id);
+          if (m && m.provider === "anthropic" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+
+      // 1c) If the provider "succeeds" but returns empty output, retry with a safe model on the same provider.
+      // This covers both auto + manual selections; we still avoid cross-provider switching in manual mode below.
+      if (emptyProviderResponse && picked.provider === "openai") {
+        for (const id of ["gpt-5.2", "gpt-5", "gpt-5-nano"]) {
+          const m = getModel(id);
+          if (m && m.provider === "openai" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+      if (emptyProviderResponse && picked.provider === "grok") {
+        for (const id of ["grok-4", "grok-4.1"]) {
+          const m = getModel(id);
+          if (m && m.provider === "grok" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+      if (emptyProviderResponse && picked.provider === "deepseek") {
+        for (const id of ["deepseek-v3.2", "deepseek-r1"]) {
+          const m = getModel(id);
+          if (m && m.provider === "deepseek" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+      if (emptyProviderResponse && picked.provider === "moonshot") {
+        for (const id of ["kimi-k2-5"]) {
+          const m = getModel(id);
+          if (m && m.provider === "moonshot" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+      if (emptyProviderResponse && picked.provider === "perplexity") {
+        for (const id of ["perplexity-sonar-pro", "perplexity-sonar"]) {
+          const m = getModel(id);
+          if (m && m.provider === "perplexity" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+      if (emptyProviderResponse && picked.provider === "qwen") {
+        for (const id of ["qwen3-max"]) {
+          const m = getModel(id);
+          if (m && m.provider === "qwen" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+      if (emptyProviderResponse && picked.provider === "gemini") {
+        for (const id of ["gemini-2.5 pro", "gemini-2.5 flash"]) {
+          const m = getModel(id);
+          if (m && m.provider === "gemini" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+      if (emptyProviderResponse && picked.provider === "anthropic") {
+        for (const id of ["claude-sonnet-4.5", "claude-haiku-4.5"]) {
+          const m = getModel(id);
+          if (m && m.provider === "anthropic" && m.remoteModel !== picked.remoteModel) candidates.push(m);
+        }
+      }
+
+      // 2) Cross-provider fallback (keeps previous behavior) - ONLY in auto mode.
+      // In manual mode we avoid switching providers (unless you decide otherwise later).
+      if (selectionMode !== "manual") {
+        const cross =
+          picked.provider === "openai" ? getModel("gemini-2.5 pro") : getModel("gpt-5.2");
+        if (cross && cross.provider !== picked.provider) candidates.push(cross);
+      }
+
+      // Try candidates in order until one works.
+      for (const fb of candidates) {
+        try {
+          if (process.env.DEBUG_AI === "1") {
+            console.error("[ai] fallback", {
+              fromProvider: picked.provider,
+              fromModel: picked.id,
+              toProvider: fb.provider,
+              toModel: fb.id,
+              reason: openaiModelNotFound
+                ? "openai_model_not_found"
+                : grokModelNotFound
+                  ? "grok_model_not_found"
+                  : deepseekModelNotFound
+                    ? "deepseek_model_not_found"
+                    : moonshotModelNotFound
+                      ? "moonshot_model_not_found"
+                      : perplexityModelNotFound
+                        ? "perplexity_model_not_found"
+                        : qwenModelNotFound
+                          ? "qwen_model_not_found"
+                : geminiModelNotFound
+                  ? "gemini_model_not_found"
+                  : emptyProviderResponse
+                    ? "empty_provider_response"
+                  : "auto_fallback",
+            });
+          }
+
+          const out2 = await callModel(fb);
+          const fbText = assertNonEmptyText({ out: out2, modelObj: fb });
+          const latencyMs = Date.now() - startedAt;
+          await updateAIRequest(reqRow.id, {
+            status: "succeeded",
+            provider: fb.provider,
+            model: fb.remoteModel,
+            selectionMode: selectionMode === "manual" ? "manual" : "auto",
+            latencyMs,
+            inputTokens: out2?.usage?.prompt_tokens ?? null,
+            outputTokens: out2?.usage?.completion_tokens ?? null,
+            errorCode: null,
+            errorMessage: null,
+          });
+          return {
+            requestId: reqRow.id,
+            provider: fb.provider,
+            model: fb.id,
+            remoteModel: fb.remoteModel,
+            selectionMode: selectionMode === "manual" ? "manual" : "auto",
+            text: fbText,
+            usage: out2.usage || null,
+            fallbackFrom: picked.id,
+            webSearch: Boolean(webSearchMeta.used),
+            webSearchDenied: Boolean(webSearchMeta.denied),
+            sources: webSearchMeta.sources || null,
+          };
+        } catch (e2) {
+          lastErr = e2;
+        }
+      }
+    }
+
+    const latencyMs = Date.now() - startedAt;
+    await updateAIRequest(reqRow.id, {
+      status: "failed",
+      latencyMs,
+      errorCode: lastErr?.message || "ERROR",
+      errorMessage: String(lastErr?.details?.body || lastErr?.details?.missing || lastErr?.message || "ERROR").slice(
+        0,
+        1000
+      ),
+    });
+
+    throw lastErr;
+  }
+}
+
+module.exports = {
+  streamChat,
+};

@@ -1,0 +1,15 @@
+.tabs{display:flex;gap:8px}
+.tab{
+  border:1px solid transparent;
+  background:transparent;
+  color:rgba(255,255,255,.70);
+  padding:10px 12px;
+  border-radius:14px;
+  cursor:pointer;
+}
+.tab:hover{background:rgba(255,255,255,.06);color:#fff}
+.tab.active{
+  background:var(--panel);
+  border:1px solid var(--border);
+  color:#fff;
+}

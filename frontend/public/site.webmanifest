@@ -1,0 +1,17 @@
+{
+  "name": "Core AI",
+  "short_name": "Core AI",
+  "description": "Core AI | All AI Models in One Place | GPT, Claude, Gemini, Grok, Nano Banana, Seedream and other models in one platform.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon.svg?v=2",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

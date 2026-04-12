@@ -1,0 +1,297 @@
+
+.explore-page {
+  padding: 0 8px;
+  color: white;
+
+  /* 🔥 eixo ÚNICO para tudo */
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.explore-content {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+
+.explore-title {
+  font-size: 40px;
+  font-weight: 600;
+  margin-top: 5px;
+  margin-bottom: 2px;
+  text-align: center;
+  transform: translateX(2.0px);
+}
+
+.explore-subtitle {
+  font-size: 21px;
+  font-weight: 300;
+  color: #a1a1aa;
+  margin-top: 15px;
+  margin-bottom: 20px;
+  text-align: center;
+  transform: translateX(2.0px);
+}
+
+.explore-tabs {
+  display: flex;
+  gap: 12px;
+  margin: 0 auto 36px;
+  justify-content: center;
+}
+
+.explore-tabs button {
+  background: #111;
+  border: none;
+  color: #e5e5e5;
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s;
+  transform: translateX(1.0px);
+}
+
+.explore-tabs button.active {
+  background: white;
+  color: black;
+  border: 1px solid rgba(0,0,0,0.12);
+}
+
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.explore-card {
+  background: #0b0b0b;
+  border: 1px solid #1f1f23;
+  border-radius: 18px;
+  padding: 26px;
+  height: 200px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  transition: border 0.2s, transform 0.15s;
+}
+.explore-card:hover {
+  transform: translateY(-2px);
+}
+
+.explore-card:hover {
+  border-color: #3f3f46;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.card-header img {
+  width: 40px;
+  height: 40px;
+}
+/* Logos monocromáticos pretos → brancos (CSS only) */
+.card-header img[src*="flux"],
+.card-header img[src*="ideogram"],
+.card-header img[src*="cartesia"],
+.card-header img[src*="eleven.svg"] {
+  filter: brightness(0) invert(1);
+}
+
+
+.card-description {
+  color: #a1a1aa;
+  font-size: 14px;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.try-btn {
+  margin-top: 16px;
+  align-self: flex-end;
+
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 999px;
+
+  color: #e5e7eb;
+
+  padding: 6px 12px;
+  font-size: 16px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+.try-btn:hover {
+  background-color: #1a1a1a;
+  border-color: transparent;
+  transform: translateX(2px);
+  opacity: 0.92;
+}
+
+
+.card-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+}
+/* wrapper do search com o MESMO eixo do grid (1120px) */
+.explore-search-wrapper {
+  position: relative;
+  width: 500px;
+  margin: 0 auto 28px;
+
+  transform: translateX(-22.5px); /* 🔥 micro-ajuste visual */
+}
+
+/* ===================== LIGHT MODE (opt-in) ===================== */
+:root[data-theme="light"] .explore-page {
+  color: rgba(17, 17, 17, 0.92);
+}
+
+:root[data-theme="light"] .explore-subtitle {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme="light"] .explore-tabs button {
+  background: #ffffff;
+  border: none;
+  color: rgba(17, 17, 17, 0.86);
+}
+
+:root[data-theme="light"] .explore-tabs button.active {
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #000000;
+}
+
+:root[data-theme="light"] .explore-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+:root[data-theme="light"] .explore-card:hover {
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+:root[data-theme="light"] .card-description {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme="light"] .try-btn {
+  color: rgba(17, 17, 17, 0.86);
+  background: #ffffff;
+  border: none;
+}
+
+:root[data-theme="light"] .try-btn:hover {
+  background-color: #ffffff;
+}
+
+:root[data-theme="light"] .card-header img[src*="openai"],
+:root[data-theme="light"] .card-header img[src*="grok"] {
+  filter: brightness(0) saturate(100%);
+}
+
+:root[data-theme="light"] .card-header img[src*="flux"],
+:root[data-theme="light"] .card-header img[src*="ideogram"],
+:root[data-theme="light"] .card-header img[src*="cartesia"],
+:root[data-theme="light"] .card-header img[src*="eleven.svg"] {
+  filter: none;
+}
+
+/* ===================== RESPONSIVE (tablet) ===================== */
+@media (max-width: 1024px){
+  .explore-grid{
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .explore-title{
+    font-size: 34px;
+  }
+
+  .explore-subtitle{
+    font-size: 18px;
+    margin-top: 12px;
+  }
+
+  .explore-tabs{
+    margin-bottom: 28px;
+  }
+
+  .explore-search-wrapper{
+    width: min(560px, calc(100vw - 32px));
+    transform: none;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1366px){
+  .explore-card{
+    height: auto;
+    min-height: 220px;
+    padding-bottom: 24px;
+  }
+
+  .card-description{
+    margin-bottom: 18px;
+  }
+
+  .try-btn{
+    margin-top: auto;
+    margin-right: 2px;
+    margin-bottom: 2px;
+    align-self: flex-end;
+  }
+}
+
+/* ===================== RESPONSIVE (mobile) ===================== */
+@media (max-width: 720px){
+  .explore-page{
+    padding: 0 12px;
+  }
+
+  .explore-grid{
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .explore-title{
+    font-size: 30px;
+  }
+
+  .explore-subtitle{
+    font-size: 16px;
+    margin-bottom: 16px;
+  }
+
+  .explore-tabs{
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+
+  .explore-card{
+    height: auto;
+    min-height: 180px;
+    padding: 20px;
+  }
+}

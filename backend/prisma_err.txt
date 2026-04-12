@@ -1,0 +1,6 @@
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "postgres", schema "public" at "aws-1-eu-west-1.pooler.supabase.com:6543"
+
+Error: Schema engine error:
+System.Management.Automation.RemoteException
